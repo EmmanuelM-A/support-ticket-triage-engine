@@ -1,0 +1,52 @@
+name: E2E tests
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        type: string
+        default: "3.13"
+
+env:
+  MONGO_URI: mongodb://admin:admin123@localhost:27017/support_tickets?authSource=admin
+  BASE_URL: http://localhost:8000
+
+jobs:
+  e2e:
+    name: Pytest
+    runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:8.0
+        ports:
+          - 27017:27017
+        env:
+          MONGO_INITDB_ROOT_USERNAME: admin
+          MONGO_INITDB_ROOT_PASSWORD: admin123
+          MONGO_INITDB_DATABASE: support_tickets
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.adminCommand(\"ping\")'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: ${{ inputs.python-version }}
+          enable-cache: true
+      - run: uv sync --locked
+      - name: Start API
+        run: |
+          uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 > uvicorn.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -sf "$BASE_URL/" > /dev/null && exit 0
+            sleep 1
+          done
+          echo "API did not start" && cat uvicorn.log && exit 1
+      # Exit code 5 means "no tests collected"; allowed until tests exist.
+      - name: E2E tests
+        run: uv run pytest tests/e2e || [ $? -eq 5 ]
+      - name: API logs
+        if: failure()
+        run: cat uvicorn.log

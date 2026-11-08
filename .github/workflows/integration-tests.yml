@@ -1,0 +1,40 @@
+name: Integration tests
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        type: string
+        default: "3.13"
+
+env:
+  MONGO_URI: mongodb://admin:admin123@localhost:27017/support_tickets?authSource=admin
+
+jobs:
+  integration:
+    name: Pytest
+    runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:8.0
+        ports:
+          - 27017:27017
+        env:
+          MONGO_INITDB_ROOT_USERNAME: admin
+          MONGO_INITDB_ROOT_PASSWORD: admin123
+          MONGO_INITDB_DATABASE: support_tickets
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.adminCommand(\"ping\")'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: ${{ inputs.python-version }}
+          enable-cache: true
+      - run: uv sync --locked
+      # Exit code 5 means "no tests collected"; allowed until tests exist.
+      - name: Integration tests
+        run: uv run pytest tests/integration || [ $? -eq 5 ]
