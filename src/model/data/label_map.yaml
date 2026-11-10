@@ -1,0 +1,63 @@
+# Maps raw CFPB `Product` values onto one category taxonomy.
+# Bump `version` whenever a mapping changes, and record it in the data manifest.
+version: 1
+
+categories:
+  - credit_reporting
+  - debt_collection
+  - debt_management
+  - mortgage
+  - bank_account
+  - credit_card
+  - prepaid_card
+  - money_transfer
+  - student_loan
+  - vehicle_loan
+  - personal_loan
+
+# A product maps either straight to a category, or to a `default` category
+# with `sub_products` overrides (for old products that bundled two categories).
+products:
+  "Credit reporting": credit_reporting
+  "Credit reporting, credit repair services, or other personal consumer reports": credit_reporting
+  "Credit reporting or other personal consumer reports": credit_reporting
+
+  "Debt collection": debt_collection
+  "Debt or credit management": debt_management
+
+  "Mortgage": mortgage
+
+  "Bank account or service": bank_account
+  "Checking or savings account": bank_account
+
+  "Credit card": credit_card
+  "Credit card or prepaid card":
+    default: credit_card
+    sub_products:
+      "General-purpose prepaid card": prepaid_card
+      "Gift card": prepaid_card
+      "Government benefit card": prepaid_card
+      "Payroll card": prepaid_card
+      "Student prepaid card": prepaid_card
+  "Prepaid card": prepaid_card
+
+  "Money transfers": money_transfer
+  "Virtual currency": money_transfer
+  "Money transfer, virtual currency, or money service": money_transfer
+
+  "Student loan": student_loan
+
+  "Vehicle loan or lease": vehicle_loan
+
+  "Payday loan": personal_loan
+  "Payday loan, title loan, or personal loan": personal_loan
+  "Payday loan, title loan, personal loan, or advance loan": personal_loan
+  "Consumer Loan":
+    default: personal_loan
+    sub_products:
+      "Vehicle loan": vehicle_loan
+      "Vehicle lease": vehicle_loan
+
+# Known products that are dropped on purpose (too small and too vague to learn).
+excluded:
+  - "Other financial service"
