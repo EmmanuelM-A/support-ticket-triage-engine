@@ -72,9 +72,7 @@ class _MachineLearningSettings(_BaseSettings):
 
     RANDOM_SEED: int = Field(default=42)
 
-    ORIGINAL_DATA_PATH: Path = Field(
-        default=_PROJECT_ROOT / "data" / "source" / "complaints.csv.zip"
-    )
+    SOURCE_DATA_DIR: Path = Field(default=_PROJECT_ROOT / "data" / "source")
     RAW_DATA_DIR: Path = Field(default=_PROJECT_ROOT / "data" / "raw")
     SAMPLES_PER_CATEGORY: int = Field(default=7_000)
     REQUIRED_COLUMNS: list[str] = Field(

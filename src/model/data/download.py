@@ -1,4 +1,6 @@
+import argparse
 import logging
+from collections.abc import Iterator
 from pathlib import Path
 
 import numpy as np
@@ -9,38 +11,40 @@ from src.model.data.label_map import LabelMap, load_label_map
 
 TEXT_COLUMN = "Consumer complaint narrative"
 CATEGORY_COLUMN = "category"
+ID_COLUMN = "Complaint ID"
 
 _logger = logging.getLogger(__name__)
 
 
 def sample_complaints(
-    source: Path,
+    source_dir: Path,
     destination: Path,
     n_per_category: int = settings.ml.SAMPLES_PER_CATEGORY,
     label_map: LabelMap | None = None,
     seed: int = settings.ml.RANDOM_SEED,
+    force: bool = False,
 ) -> Path:
     """
-    Stream the CFPB export at `source`, keep rows with a narrative, map each
-    product to a category and write a uniform sample of up to
+    Stream every CFPB export zip in `source_dir`, keep rows with a narrative,
+    map each product to a category and write a uniform sample of up to
     `n_per_category` rows per category to `destination` (CSV).
     """
-    if destination.exists():
-        _logger.info("Sample already exists at %s, skipping", destination)
+    if destination.exists() and not force:
+        _logger.info(
+            "Sample already exists at %s, skipping (use force to rebuild)",
+            destination,
+        )
         return destination
+
+    sources = sorted(source_dir.glob("*.zip"))
+    if not sources:
+        raise FileNotFoundError(f"No .zip files found in {source_dir}")
 
     label_map = label_map or load_label_map()
     rng = np.random.default_rng(seed)
     kept: pd.DataFrame | None = None
 
-    reader = pd.read_csv(
-        source,
-        chunksize=settings.ml.DOWNLOAD_CHUNK_SIZE,
-        usecols=settings.ml.REQUIRED_COLUMNS,
-        dtype=str,
-    )
-
-    for chunk in reader:
+    for chunk in _read_chunks(sources):
         chunk = chunk.dropna(subset=[TEXT_COLUMN])
         chunk = chunk[chunk[TEXT_COLUMN].str.strip() != ""]
 
@@ -57,16 +61,17 @@ def sample_complaints(
         )
         kept = (
             combined.sort_values("_r")
+            .drop_duplicates(subset=ID_COLUMN)
             .groupby(CATEGORY_COLUMN, sort=False)
             .head(n_per_category)
         )
 
     if kept is None:
-        raise ValueError(f"No rows with narrative text found in {source}")
+        raise ValueError(f"No rows with narrative text found in {source_dir}")
 
     sampled = (
         kept.drop(columns="_r")
-        .sort_values([CATEGORY_COLUMN, "Complaint ID"])
+        .sort_values([CATEGORY_COLUMN, ID_COLUMN])
         .reset_index(drop=True)
     )
 
@@ -77,9 +82,25 @@ def sample_complaints(
     sampled.to_csv(tmp, index=False)
     tmp.replace(destination)
 
-    _logger.info("Wrote %d rows to %s", len(sampled), destination)
+    _logger.info(
+        "Wrote %d rows from %d source files to %s",
+        len(sampled),
+        len(sources),
+        destination,
+    )
 
     return destination
+
+
+def _read_chunks(sources: list[Path]) -> Iterator[pd.DataFrame]:
+    for source in sources:
+        _logger.info("Reading %s", source.name)
+        yield from pd.read_csv(
+            source,
+            chunksize=settings.ml.DOWNLOAD_CHUNK_SIZE,
+            usecols=settings.ml.REQUIRED_COLUMNS,
+            dtype=str,
+        )
 
 
 def _check_counts(df: pd.DataFrame, label_map: LabelMap, n_per_category: int) -> None:
@@ -99,8 +120,15 @@ def _check_counts(df: pd.DataFrame, label_map: LabelMap, n_per_category: int) ->
 if __name__ == "__main__":
     from src.config.logger import setup_logging
 
+    parser = argparse.ArgumentParser(description="Sample CFPB complaints.")
+    parser.add_argument(
+        "--force", action="store_true", help="rebuild even if the sample exists"
+    )
+    args = parser.parse_args()
+
     setup_logging()
     sample_complaints(
-        settings.ml.ORIGINAL_DATA_PATH,
+        settings.ml.SOURCE_DATA_DIR,
         settings.ml.RAW_DATA_DIR / "complaints_sample.csv",
+        force=args.force,
     )
