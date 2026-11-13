@@ -172,4 +172,4 @@ def test_raises_when_no_narratives(tmp_path: Path) -> None:
 def test_default_source_dir_is_inside_project() -> None:
     project_root = Path(__file__).resolve().parents[4]
 
-    assert settings.ml.SOURCE_DATA_DIR.is_relative_to(project_root)
+    assert settings.ml.RAW_DATA_DIR.is_relative_to(project_root)

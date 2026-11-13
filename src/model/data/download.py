@@ -25,9 +25,8 @@ def sample_complaints(
     force: bool = False,
 ) -> Path:
     """
-    Stream every CFPB export zip in `source_dir`, keep rows with a narrative,
-    map each product to a category and write a uniform sample of up to
-    `n_per_category` rows per category to `destination` (CSV).
+    Sample complaints from the source directory and save them to the
+    destination file.
     """
     if destination.exists() and not force:
         _logger.info(
@@ -128,7 +127,7 @@ if __name__ == "__main__":
 
     setup_logging()
     sample_complaints(
-        settings.ml.SOURCE_DATA_DIR,
-        settings.ml.RAW_DATA_DIR / "complaints_sample.csv",
+        settings.ml.RAW_DATA_DIR,
+        settings.ml.SAMPLE_DATA_DIR / "complaints_sample.csv",
         force=args.force,
     )
