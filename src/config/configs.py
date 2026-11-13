@@ -90,6 +90,9 @@ class _MachineLearningSettings(_BaseSettings):
     DOWNLOAD_CHUNK_SIZE: int = Field(default=50_000)
 
     LABELLING_MODEL: str = Field(default="gpt-6-astra")
+    LABELLING_GUIDELINES_PATH: Path = Field(
+        default=_PROJECT_ROOT / "src" / "model" / "labelling" / "guidelines.md"
+    )
 
 
 class Settings(_BaseSettings):

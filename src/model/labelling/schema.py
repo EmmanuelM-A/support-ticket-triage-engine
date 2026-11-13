@@ -1,8 +1,8 @@
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel
 
-from config.configs import settings
+from src.config.configs import settings
 
 Urgency = Literal["low", "medium", "high", "critical"]
 Sentiment = Literal["negative", "neutral", "positive"]
@@ -18,7 +18,7 @@ class WeakLabel(BaseModel):
     sentiment: Sentiment
 
 
-LABEL_SCHEMA = {
+LABEL_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
         "rationale": {"type": "string"},
@@ -49,3 +49,11 @@ def build_body(text: str, guidelines: str) -> dict:
             }
         },
     }
+
+
+def load_guidelines() -> str:
+    """
+    Loads the labeling guidelines from a text file.
+    """
+    with open(settings.ml.LABELLING_GUIDELINES_PATH, encoding="utf-8") as f:
+        return f.read()
